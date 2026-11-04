@@ -1,0 +1,548 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+:root {
+  --text: #1c1c1f;
+  --muted: #77777e;
+  --line: rgba(0, 0, 0, 0.08);
+  --hover: rgba(0, 0, 0, 0.05);
+  --press: rgba(0, 0, 0, 0.09);
+  --panel: #ffffff;
+  --focus: #2f6bff;
+  /* Anything picked (shapes, a palette) is a soft blue with a blue edge, rather than solid black */
+  --picked: #ebf1ff;
+  --picked-hover: #dfe9ff;
+  --picked-edge: #3b78f6;
+  --picked-ink: #2563eb;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: #1f2d4e;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Stage */
+
+.paint-stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  cursor: crosshair;
+}
+
+.paint-stage.tool-eraser {
+  cursor: none;
+}
+
+.paint-stage.is-baked {
+  cursor: default;
+}
+
+/* Neighbouring repeats are ghosts while you paint, and become the pattern when you bake */
+.paint-ghost {
+  opacity: 0.74;
+  transition: opacity 650ms ease;
+  pointer-events: none;
+}
+
+.paint-outline {
+  opacity: 0.45;
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
+  transition: opacity 300ms ease;
+  pointer-events: none;
+}
+
+.is-baked .paint-ghost,
+.is-baked .paint-outline {
+  opacity: 0;
+}
+
+.paint-cursor {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.paint-eraser {
+  fill: rgba(255, 255, 255, 0.18);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.paint-hint {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  padding: 24px;
+  pointer-events: none;
+  font-size: 15px;
+}
+
+.paint-hint strong {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Balanced lines if it has to wrap, and bright enough to read on dark palettes */
+.paint-hint span {
+  max-width: 36ch;
+  line-height: 1.4;
+  text-wrap: balance;
+  opacity: 0.8;
+}
+
+/* Panel */
+
+.panel {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 300px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 16px 40px rgba(0, 0, 0, 0.16);
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: -6px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.history {
+  display: flex;
+  gap: 2px;
+  margin-right: -6px;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.icon-button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/*
+ * Buttons with a little depth: a light catch along the top edge inside, a
+ * hairline edge, and a soft shadow underneath, so they read as things to
+ * press. Pressing sinks them: the shadow moves inside. Hover and press only
+ * swap the two variables, so a disabled button simply never changes.
+ */
+.button {
+  --fill: linear-gradient(#ffffff, #f5f5f6);
+  --depth:
+    inset 0 1px 0 #ffffff, 0 0 0 1px rgba(0, 0, 0, 0.09), 0 1px 2px rgba(0, 0, 0, 0.07),
+    0 3px 6px -2px rgba(0, 0, 0, 0.06);
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-weight: 500;
+  background: var(--fill);
+  box-shadow: var(--depth);
+  transition: box-shadow 120ms;
+}
+
+.button:not(:disabled):hover {
+  --fill: linear-gradient(#ffffff, #efeff1);
+}
+
+.button:not(:disabled):active {
+  --fill: #f0f0f2;
+  --depth: inset 0 1px 2px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.button.primary {
+  --fill: linear-gradient(#3a3a40, #1c1c1f);
+  --depth:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 1px #111113, 0 1px 2px rgba(0, 0, 0, 0.24),
+    0 3px 6px -2px rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+.button.primary:not(:disabled):hover {
+  --fill: linear-gradient(#303035, #121214);
+}
+
+.button.primary:not(:disabled):active {
+  --fill: #121214;
+  --depth: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px #000000;
+}
+
+.button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.download-list {
+  display: flex;
+  flex-direction: column;
+  margin: -10px -8px 0;
+  padding: 4px;
+  border-radius: 12px;
+  background: #f6f6f7;
+}
+
+.download-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  text-align: left;
+}
+
+.download-option:hover {
+  background: var(--press);
+}
+
+.download-option svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.download-option span {
+  display: flex;
+  flex-direction: column;
+}
+
+.download-option small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Sections */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.section-hint {
+  font-weight: 450;
+  opacity: 0.8;
+}
+
+.section-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Shapes */
+
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.shape-button {
+  aspect-ratio: 1;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: #4a4a50;
+}
+
+.shape-button:hover {
+  background: var(--hover);
+}
+
+.shape-button[aria-pressed='true'] {
+  background: var(--picked);
+  color: var(--picked-ink);
+  box-shadow: inset 0 0 0 1.5px var(--picked-edge);
+}
+
+.shape-button[aria-pressed='true']:hover {
+  background: var(--picked-hover);
+}
+
+.brush-preview {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Segmented controls */
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--hover);
+}
+
+.segmented button {
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button[data-pressed] {
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/*
+ * Each label quietly reserves the width of its bold self, so picking an
+ * option turns the text bold without nudging it or the icon beside it.
+ */
+.segmented-label {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.segmented-label::after {
+  content: attr(data-label);
+  /* The empty alt text keeps screen readers from reading the label twice */
+  content: attr(data-label) / '';
+  font-weight: 600;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Palettes: each one is its colours as overlapping dots, in a pill you can press */
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* --ring is the pill's own colour, so the gap around each dot always matches what's behind it */
+.palette {
+  --ring: var(--panel);
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition:
+    box-shadow 120ms,
+    background 120ms;
+}
+
+.palette:hover {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.22);
+}
+
+.palette[aria-pressed='true'] {
+  --ring: var(--picked);
+  box-shadow: inset 0 0 0 1.5px var(--picked-edge);
+}
+
+.palette[aria-pressed='true']:hover {
+  --ring: var(--picked-hover);
+}
+
+.palette-dots {
+  display: flex;
+}
+
+/* A ring of the pill's colour keeps each dot distinct from the one it overlaps; the inner line keeps pale colours visible */
+.palette-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--ring),
+    inset 0 0 0 1px var(--line);
+  transition: box-shadow 120ms;
+}
+
+.palette-dot + .palette-dot {
+  margin-left: -8px;
+}
+
+/* Sliders */
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #a2a2a8;
+}
+
+/* Slider end icons sit in equal slots, so a small icon doesn't make its track longer */
+.slider-icon {
+  flex: none;
+  width: 20px;
+  display: grid;
+  place-items: center;
+}
+
+.slider input {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  height: 24px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.slider input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #e6e6e9;
+}
+
+.slider input::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #e6e6e9;
+}
+
+.slider input::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.slider input::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* On a phone the panel becomes a sheet along the bottom, leaving the top half for the pattern */
+@media (max-width: 640px) {
+  .panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: 52%;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+  }
+}

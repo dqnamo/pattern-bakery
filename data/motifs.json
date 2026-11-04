@@ -1,0 +1,18 @@
+{
+  "motifs": [
+    { "id": "dot", "name": "Dot", "file": "motifs/dot.svg" },
+    { "id": "ring", "name": "Ring", "file": "motifs/ring.svg" },
+    { "id": "square", "name": "Square", "file": "motifs/square.svg" },
+    { "id": "diamond", "name": "Diamond", "file": "motifs/diamond.svg" },
+    { "id": "triangle", "name": "Triangle", "file": "motifs/triangle.svg" },
+    { "id": "chevron", "name": "Chevron", "file": "motifs/chevron.svg" },
+    { "id": "cross", "name": "Cross", "file": "motifs/cross.svg" },
+    { "id": "leaf", "name": "Leaf", "file": "motifs/leaf.svg" },
+    { "id": "star", "name": "Star", "file": "motifs/star.svg" },
+    { "id": "arch", "name": "Arch", "file": "motifs/arch.svg" },
+    { "id": "heart", "name": "Heart", "file": "motifs/heart.svg" },
+    { "id": "flower", "name": "Flower", "file": "motifs/flower.svg" },
+    { "id": "dash", "name": "Dash", "file": "motifs/dash.svg" },
+    { "id": "wave", "name": "Wave", "file": "motifs/wave.svg" }
+  ]
+}
